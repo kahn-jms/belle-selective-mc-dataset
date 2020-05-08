@@ -23,7 +23,7 @@ The KL divergence should be below $KL_{div}<0.0015$. This value may change for d
 |cosTheta|  momentum cosine of polar angle
 cosToThrustOfEvent| cosine of the angle between the particle and the thrust axis of the even
 |daughter(0,cosTheta)|   returns the $cos(\Theta)$ of the first daughter
-|Q|  ???
+|Q| released energy in decay
 |aplanarity| Event aplanarity, defined as the 3/2 of the third sphericity eigenvalue
 |backwardHemisphereEnergy| Total energy the particles flying in the direction opposite to the thrust axis
 |backwardHemisphereMass|   Invariant mass of the particles flying in the direction opposite to the thrust axis
