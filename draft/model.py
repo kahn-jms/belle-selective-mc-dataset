@@ -1,10 +1,22 @@
 import tensorflow as tf
 from tensorflow.keras import layers
 
+
 class AdjacencyMatrixFromMothers(tf.keras.layers.Layer):
     """
-    Create an adjacency matrix from mother particle indices (one-hot encoding) and
-    optionally symmetrize and normalize it (according to https://arxiv.org/abs/1609.02907)
+    Create an adjacency matrix from mother particle indices (one-hot encoding)
+    and optionally symmetrize, normalize and add missing self-loops to it
+    (according to https://arxiv.org/abs/1609.02907)
+
+    The normalized version of the symmetrized adjacency matrix A with self-loops is given by
+
+    D^(-1/2)AD^(-1/2)
+
+    with D being the degree matrix of A. Therefore the components (ij) are given by:
+
+    deg(i)^(-1/2) * deg(j)^(-1/2)
+
+    for non-zero components in A and 0 otherwise.
     """
 
     def __init__(self, add_diagonal=True, symmetrize=True, normalize=True):
@@ -17,31 +29,37 @@ class AdjacencyMatrixFromMothers(tf.keras.layers.Layer):
         shape = tf.shape(inputs)
         N = shape[1]
         bs = shape[0]
+
+        # adjaceny matrix is created by one-hot-encoding the mother indices
         idx = tf.where(inputs < 0, tf.cast(N, dtype=tf.float32), inputs)
         # last dimension corresponds to entries without mother particle (or padded slots)
-        adj = tf.one_hot(tf.cast(idx, dtype=tf.int32), N + 1)[:,:,:-1]
+        adj = tf.one_hot(tf.cast(idx, dtype=tf.int32), N + 1)[:, :, :-1]
+
         if self.symmetrize:
             adj = adj + tf.linalg.matrix_transpose(adj)
+
         if self.add_diagonal:
             diagonal = tf.broadcast_to(tf.eye(N), (bs, N, N))
             diagonal = tf.where(
-                tf.repeat(
-                    tf.reshape(
-                        inputs != -1,
-                        (bs, N, 1)
-                    ),
-                    N,
-                    axis=2
-                ),
+                tf.repeat(tf.reshape(inputs != -1, (bs, N, 1)), N, axis=2),
                 diagonal,
-                tf.zeros_like(adj)
+                tf.zeros_like(adj),
             )
             adj = adj + diagonal
+
+        # have values either 0 or 1
+        # (the adding above could produce higher values than 1)
+        adj = tf.cast(adj != 0, dtype=tf.float32)
+
         if self.normalize:
-            d12_diag = tf.expand_dims(tf.reduce_sum(adj, axis=2), axis=2)
-            d12_diag = tf.where(d12_diag > 0, d12_diag ** -0.5, 0)
-            d12 = tf.broadcast_to(tf.eye(N), (bs, N, N)) * d12_diag
-            adj = tf.matmul(d12, tf.matmul(adj, d12))
+            # calculate outer product of degree vector and multiply with adjaceny matrix
+            deg_diag = tf.reduce_sum(adj, axis=2)
+            deg12_diag = tf.where(deg_diag > 0, deg_diag  ** -0.5, 0)
+            adj = tf.matmul(
+                tf.expand_dims(deg12_diag, axis=2),
+                tf.expand_dims(deg12_diag, axis=1),
+            ) * adj
+
         return adj
 
 
