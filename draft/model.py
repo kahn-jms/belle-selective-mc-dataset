@@ -79,7 +79,7 @@ class SimpleGCN(tf.keras.layers.Layer):
         return self.activation(tf.matmul(adjacency, self.dense(feat)))
 
 
-def get_model(num_nodes=100, num_features=8, num_pdg=540, emb_size=8):
+def get_model(units=128, num_nodes=100, num_features=8, num_pdg=540, emb_size=8):
     adjacency_input = layers.Input(shape=(num_nodes,), name='x_adjacency')
     feature_input = layers.Input(shape=(num_nodes, num_features), name='x_feature')
     pdg_input = layers.Input(shape=(num_nodes,), name='x_pdg')
@@ -99,16 +99,16 @@ def get_model(num_nodes=100, num_features=8, num_pdg=540, emb_size=8):
     # particle-level transformations
     p = feat_pdg_input
     for i in range(3):
-        p = layers.Dense(128, activation="relu")(p)
+        p = layers.Dense(units, activation="relu")(p)
 
     for i in range(3):
-        p = SimpleGCN(128, activation="relu")([p, adjacency_l])
+        p = SimpleGCN(units, activation="relu")([p, adjacency_l])
 
     x = layers.GlobalAveragePooling1D()(p)
 
     # event-level transformations
     for i in range(3):
-        x = layers.Dense(128, activation="relu")(x)
+        x = layers.Dense(units, activation="relu")(x)
 
     output = layers.Dense(1, activation="sigmoid")(x)
 
